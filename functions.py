@@ -1,21 +1,24 @@
 import numpy as np
-import h5py
+
+from cec17 import cec2017
 
 def initialization(n: int, d: int, r: list):
     rvalues = np.random.uniform(low=0, high=1, size=(n, d))
-    particles = r[1] * rvalues + (1 - rvalues) * r[2]
+    particles = r[0] * rvalues + (1 - rvalues) * r[1]
     return particles
 
-def init_fitness(x: np.array, n: int, f: callable):
+def init_fitness(x: np.array, n: int, idf: int):
     fit = np.zeros(shape=(1, n))
+
     for i in range(n):
-        fit[i] = f(x[i, :])
+        fit[i] = cec2017(x=x[i, :], fun_nums=idf)
+
     return fit
 
-def init(n, dim, range, vmax, f):
-    x = initialization(n=n, dim=dim, r=range)
-    xfit = init_fitness(x=x, n=n, f=f)
-    v = initialization(n=n, dim=dim, r=[-vmax, vmax])
+def init(n, dim, range, vmax, idf):
+    x = initialization(n=n, d=dim, r=range)
+    xfit = init_fitness(x=x, n=n, idf=idf)
+    v = initialization(n=n, d=dim, r=[-vmax, vmax])
 
     i = np.zeros(shape=(n, 1))
     c = np.zeros(shape=(n, 1))
@@ -43,9 +46,9 @@ def get_best_global(p: dict):
 
     return g
 
-def get_gradient(x0: np.ndarray, f: callable):
+def get_gradient(x0: np.ndarray, idf: int):
     g = np.zeros(x0.shape)
-    fx0 = f(x0)
+    fx0 = cec2017(x=x0, fun_nums=idf)
     step = 1e-5
 
     for i in range(0, len(x0)):
@@ -64,18 +67,51 @@ def trunc_grad(g: np.ndarray, gradmax: float):
 
     return g
 
-def trunc_space(X, I, C, r):
-    iddown = X < r[1]
-    idup = X > r[2]
+def m_function(p):
+    a = -0.5 + np.random.uniform(p["d"])
+    m = p["i"] + p["a"] * (a - np.transpose(a))
+
+    return m
+
+def get_velocity(x, v, p, s, gb, I, params, direction):
+    if dir == 1:
+        pt1 = I * params["cc"] * np.random.uniform(0, 1, 1) * (p - x)
+        pt2 = I * params["sc"] * np.random.uniform(0, 1, 1) * (gb["x"] - x)
+        pt3 = (I-1) * params["gc"] * np.random.uniform(0, 1, 1) * s
+        
+        v = params["iw"] * v + direction * (pt1 + pt2 + pt3)
+    else:
+        m1 = m_function(params)
+        m2 = m_function(params)
+
+        pt1 = I * params["sc"] * np.random.uniform(0, 1, 1) * np.transpose(m1 * np.transpose(gb["x"] - x))
+        pt2 = (I-1) * params["gc"] * np.random.uniform(0, 1, 1) * np.transpose(m2 * np.transpose(s))
+
+        v = params["iw"] * v + direction * (pt1 + pt2)
+
+    return v
+
+def trunc_vel(v, vmax):
+    iddown = v < -vmax
+    idup = v > vmax
+
+    v[iddown] = -vmax
+    v[idup] = vmax
+
+    return v
+
+def trunc_space(x, i, c, r):
+    iddown = x < r[1]
+    idup = x > r[2]
 
     if (any(iddown) == 1) or (any(idup) == 1):
-        I = 1
-        C = 0
+        i = 1
+        c = 0
 
-    X[iddown] = r[1]
-    X[idup] = r[2]
+    x[iddown] = r[1]
+    x[idup] = r[2]
 
-    return X, I, C
+    return x, i, c
 
 def update_best(x: np.ndarray, xfit: float, p: np.ndarray, pfit: float, g: dict):
     if xfit < pfit:

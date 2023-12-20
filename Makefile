@@ -1,11 +1,17 @@
 .PHONY: downloads compile
 
 downloads:
-	wget https://raw.githubusercontent.com/lacerdamarcelo/cec17_python/master/cec17_test_func.c
-	wget https://raw.githubusercontent.com/lacerdamarcelo/cec17_python/master/cec17_functions.py
+	git clone git@github.com:oakboat/cec17-python.git
+	mv cec17-python/input_data ./
+	mv cec17-python/cec* ./
+	rm -rf cec17-python
 
-compile:
-	gcc -fPIC -shared -lm -o cec17_test_func.so cec17_test_func.c
+# compile:
+# 	gcc -fPIC -shared -lm -o cec17_test_func.so cec17_test_func.c
 
-all: downloads compile
+clean:
+	rm -rf input_data/
+	rm -rf cec*
+
+all: downloads
 	echo All configuration steps complete.
